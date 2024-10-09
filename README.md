@@ -1,1 +1,1 @@
-# -class-schedule-parser
+# class-schedule-parser
