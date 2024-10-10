@@ -1,7 +1,5 @@
 from docx.table import Table
-from docx.table import _Row
-
-from typing import Optional
+from docx.table import _Row, _Rows
 
 from parser_utils import *
 
@@ -25,22 +23,23 @@ def get_groups_list(group_row: _Row) -> dict[str, int]:
     return group_dict
 
 
-def get_some_setting_and_table_start_idx(table: Table) -> tuple[Optional[int], Optional[int], Optional[int]]:
-    """ получение индекса колонки дня недели, времени пары, а также
-     индекса строки с первой парой """
-
-    day_col_idx = time_col_idx = -1
+def get_time_col_idx(table: Table) -> int:
+    """ Получение индекса колонки времени пары """
 
     for (idx, row) in enumerate(table.rows):
         if row.cells[0].text.lower() == DAY_OF_WEEK_KEY_WORD:
-            day_col_idx = 0
             for (cell_idx, cell) in enumerate(row.cells):
                 if cell.text.lower() == TIME_KEY_WORD:
-                    time_col_idx = cell_idx
+                    return cell_idx
 
-    if day_col_idx > -1:
-        for (idx, row) in enumerate(table.rows[day_col_idx + 1:]):
-            if row.cells[0].text.lower() in DAYS_OF_WEEK_LIST_KEY_WORDS:
-                return 0, time_col_idx, idx
+    return -1
 
-    return None, None, None
+
+def get_start_table_row_idx(table: Table) -> int:
+    """ Получение индекса строки начала полезной информации в таблице """
+
+    start_row_idx = -1
+
+    for (idx, row) in enumerate(table.rows):
+        if row.cells[0].text.lower() in DAYS_OF_WEEK_LIST_KEY_WORDS:
+            return idx

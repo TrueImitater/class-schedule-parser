@@ -164,3 +164,4 @@ cython_debug/
 # Файлы из данного проекта
 test.ipynb
 test_docxes
+result.docx
