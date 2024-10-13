@@ -4,42 +4,22 @@ from docx.table import _Row, _Rows
 from parser_utils import *
 
 
-def find_group_row_idx(table: Table) -> int:
-    """ Поиск индекса первой колонки в которой упомянаются группы """
+def parse_table(table_rows: _Rows, day_col_idx: int, time_col_idx: int, group_col_idx: int) -> dict:
+    """ Парсинг таблицы - создание словаря с парами по дням недели """
 
-    for (idx, row) in enumerate(table.rows):
-        if row.cells[0].text.lower() == GROUP_KEY_WORD:
-            return idx
+    cur_day = table_rows[0].cells[day_col_idx].text
 
+    schedule_dict = {}
+    schedule_dict[cur_day] = []
 
-def get_groups_list(group_row: _Row) -> dict[str, int]:
-    """ Получение словаря вида наименование группы/номер колонки """
-    group_dict = {}
+    for row in table_rows:
+        if cur_day != row.cells[day_col_idx].text.strip():
+            schedule_dict[cur_day].append([END_OF_DAY, END_OF_DAY])
+            cur_day = row.cells[day_col_idx].text.strip()
+            schedule_dict[cur_day] = []
 
-    for (idx, cell) in enumerate(group_row.cells):
-        if cell.text.lower() != GROUP_KEY_WORD:
-            group_dict[cell.text] = idx
+        schedule_dict[cur_day].append(
+            [row.cells[time_col_idx].text.strip(), row.cells[group_col_idx].text.strip()])
 
-    return group_dict
-
-
-def get_time_col_idx(table: Table) -> int:
-    """ Получение индекса колонки времени пары """
-
-    for (idx, row) in enumerate(table.rows):
-        if row.cells[0].text.lower() == DAY_OF_WEEK_KEY_WORD:
-            for (cell_idx, cell) in enumerate(row.cells):
-                if cell.text.lower() == TIME_KEY_WORD:
-                    return cell_idx
-
-    return -1
-
-
-def get_start_table_row_idx(table: Table) -> int:
-    """ Получение индекса строки начала полезной информации в таблице """
-
-    start_row_idx = -1
-
-    for (idx, row) in enumerate(table.rows):
-        if row.cells[0].text.lower() in DAYS_OF_WEEK_LIST_KEY_WORDS:
-            return idx
+    schedule_dict[cur_day].append([END_OF_DAY, END_OF_DAY])
+    return schedule_dict
