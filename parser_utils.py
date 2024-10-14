@@ -40,7 +40,7 @@ class TableCoreParams():
 
         # устанавливаем индекс колонки, в которой записано время начала пары
         self.set_time_col_idx()
-        if (self.start_row_idx < 0):
+        if (self.time_col_idx < 0):
             raise Exception(
                 "[ERROR] Не удается индекс колонки, в которой записано время начала пары")
 
@@ -48,7 +48,7 @@ class TableCoreParams():
         """ Поиск индекса первой колонки в которой упомянаются группы """
 
         for (idx, row) in enumerate(self.table.rows):
-            if row.cells[0].text.lower() == GROUP_KEY_WORD:
+            if row.cells[0].text.lower().strip() == GROUP_KEY_WORD:
                 return idx
 
     def set_groups_list(self) -> None:
@@ -65,8 +65,8 @@ class TableCoreParams():
         self.group_name_indexes = {}
 
         for (idx, cell) in enumerate(group_row.cells):
-            if cell.text.lower() != GROUP_KEY_WORD:
-                self.group_name_indexes[cell.text] = idx
+            if cell.text.lower().strip() != GROUP_KEY_WORD:
+                self.group_name_indexes[cell.text.strip()] = idx
 
     def set_start_table_row_idx(self) -> None:
         """ Получение индекса строки начала полезной информации в таблице """
@@ -74,7 +74,7 @@ class TableCoreParams():
         self.start_row_idx = -1
 
         for (idx, row) in enumerate(self.table.rows):
-            if row.cells[0].text.lower() in DAYS_OF_WEEK_LIST_KEY_WORDS:
+            if row.cells[0].text.lower().strip() in DAYS_OF_WEEK_LIST_KEY_WORDS:
                 self.start_row_idx = idx
                 return
 
@@ -84,9 +84,9 @@ class TableCoreParams():
         self.time_col_idx = -1
 
         for (idx, row) in enumerate(self.table.rows):
-            if row.cells[0].text.lower() == DAY_OF_WEEK_KEY_WORD:
+            if row.cells[0].text.lower().strip() == DAY_OF_WEEK_KEY_WORD:
                 for (cell_idx, cell) in enumerate(row.cells):
-                    if cell.text.lower() == TIME_KEY_WORD:
+                    if cell.text.lower().strip() == TIME_KEY_WORD:
                         self.time_col_idx = cell_idx
                         return
 

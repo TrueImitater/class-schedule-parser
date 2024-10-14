@@ -134,3 +134,91 @@ def add_schedule_row(schedule_table: docx.table.Table, time: str, upper_schedule
     change_cell_style(cells[3], TEXT_FONT_KEY_WORD, 11)
     set_cell_background_color(
         cells[3], DEFAULT_CELL_COLOR if lower_schedule == "" else LOWER_CELL_COLOR)
+
+
+def fill_schedule_table(schedule_table: docx.table.Table, schedule_dict: dict):
+    """ Заполнение таблицы информацией о парах """
+    start_row_idx = cur_row_idx = 2
+
+    for (key, value) in schedule_dict.items():
+        cur_day = key.capitalize()
+
+        cur_sub_idx = 0
+
+        if (len(value) == 1):
+            continue
+
+        while True:
+            try:
+                first_time = value[cur_sub_idx][0]
+                first_schedule = value[cur_sub_idx][1]
+            except:
+                print(cur_sub_idx, value)
+                return
+            if first_time == END_OF_DAY:
+                break
+
+            second_time = value[cur_sub_idx + 1][0]
+            second_schedule = value[cur_sub_idx + 1][1]
+
+            if (first_time == second_time):
+                # если это верхняя и нижняя неделя
+                if (first_schedule == second_schedule == ""):
+                    # если пар нет
+                    pass
+                else:
+                    add_schedule_row(schedule_table, first_time,
+                                     first_schedule, second_schedule)
+                    cur_row_idx += 1
+                cur_sub_idx += 2
+            else:
+                # если это одновременно и верхняя и нижняя недели
+                if (first_schedule != ""):
+                    # если это пара по обеим неделям - занести ее в таблицу
+                    add_schedule_row(schedule_table, first_time,
+                                     first_schedule, first_schedule)
+                    cur_row_idx += 1
+                else:
+                    pass
+                cur_sub_idx += 1
+
+        if (cur_row_idx == start_row_idx):
+            add_schedule_row(schedule_table, "", "", "")
+            schedule_table.rows[-1].cells[0].text = cur_day
+
+            change_cell_style(
+                schedule_table.rows[-1].cells[0], TEXT_FONT_KEY_WORD, 11)
+
+            start_row_idx += 1
+            cur_row_idx += 1
+        else:
+            schedule_table.rows[cur_row_idx - 1].cells[0].text = cur_day
+            change_cell_style(
+                schedule_table.rows[-1].cells[0], TEXT_FONT_KEY_WORD, 11)
+            schedule_table.cell(start_row_idx, 0).merge(
+                schedule_table.cell(cur_row_idx - 1, 0))
+
+            schedule_table.rows[-1].cells[0].text = cur_day
+            schedule_table.cell(
+                start_row_idx, 0).vertical_alignment = docx.enum.table.WD_ALIGN_VERTICAL.CENTER
+            schedule_table.cell(
+                start_row_idx, 0).paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
+
+            start_row_idx = cur_row_idx
+
+
+def create_table(schedule_dict: dict, save_path: str) -> bool:
+    """ Создание таблицы по словарю с парами по дням недели """
+    doc = Document()
+
+    # изменяем ширину полей документа
+    section = doc.sections[0]
+    section.top_margin = Cm(0.5)
+    section.left_margin = Cm(1)
+    section.right_margin = Cm(0.5)
+
+    create_table_head(doc)
+    fill_schedule_table(doc.tables[0], schedule_dict)
+    doc.save(save_path)
+
+    return True
