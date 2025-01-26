@@ -5,6 +5,9 @@ import docx
 import docx.enum
 import docx.enum.table
 import docx.enum.text
+import docx.oxml
+import docx.oxml.shape
+import docx.oxml.shared
 import docx.shared
 import docx.table
 from docx.shared import Inches, Cm
@@ -65,28 +68,24 @@ def create_table_head(doc: docx.Document):
 
     # оформляем ячейку "Группа"
     group_cell = schedule_table.cell(0, 0)
-    group_cell.width = Cm(3.5)
     group_cell.paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
     change_cell_style(group_cell, TEXT_FONT_KEY_WORD, 12)
     set_cell_background_color(group_cell, DEFAULT_CELL_COLOR)
 
     # оформляем ячейку "День"
     day_of_week_cell = schedule_table.cell(1, 0)
-    day_of_week_cell.width = Cm(2.5)
     day_of_week_cell.paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
     change_cell_style(day_of_week_cell, TEXT_FONT_KEY_WORD, 12)
     set_cell_background_color(day_of_week_cell, DEFAULT_CELL_COLOR)
 
     # оформляем ячейку "Время"
     time_cell = schedule_table.cell(1, 1)
-    time_cell.width = Cm(1)
     time_cell.paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
     change_cell_style(time_cell, TEXT_FONT_KEY_WORD, 12)
     set_cell_background_color(time_cell, DEFAULT_CELL_COLOR)
 
     # оформляем ячейку "Верхняя"
     upper_cell = schedule_table.cell(0, 2)
-    upper_cell.width = Cm(8.5)
     upper_cell.vertical_alignment = docx.enum.table.WD_ALIGN_VERTICAL.CENTER
     upper_cell.paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
 
@@ -98,7 +97,6 @@ def create_table_head(doc: docx.Document):
 
     # оформляем ячейку "Нижняя"
     lower_cell = schedule_table.cell(0, 3)
-    lower_cell.width = Cm(8.5)
     lower_cell.vertical_alignment = docx.enum.table.WD_ALIGN_VERTICAL.CENTER
     lower_cell.paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
 
@@ -207,6 +205,102 @@ def fill_schedule_table(schedule_table: docx.table.Table, schedule_dict: dict):
             start_row_idx = cur_row_idx
 
 
+def set_page_size_a3(section):
+    """ Установка размера страницы A3 """
+    section.page_width = Cm(29.7)
+    section.page_height = Cm(42)
+
+
+def set_cell_border(cell: docx.table._Cell, side: str, sz: int = 4, color: str = "000000"):
+    """Установка границы ячейки"""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+
+    # Получаем существующие границы или создаем новые
+    tcBorders = tcPr.xpath('./w:tcBorders')
+
+    print(
+        f"{'1' if tcBorders else '0'} Горизонтальный span: {tc.grid_span}\tВертикальный span: {tc.vMerge}")
+
+    # if tcBorders:
+    #     return
+
+    if not tcBorders:
+        tcBorders = OxmlElement('w:tcBorders')
+        tcPr.append(tcBorders)
+    else:
+        tcBorders = tcBorders[0]
+
+    # Создаем и добавляем границу
+    border = OxmlElement(f'w:{side}')
+    border.set(qn('w:sz'), str(sz))
+    border.set(qn('w:val'), 'single')
+    border.set(qn('w:color'), color)
+    tcBorders.append(border)
+
+
+def make_bold_line(table: Table, index: int, side: str, is_row: bool = True, sz: int = 16):
+    """
+    Делает жирной строку или столбец таблицы
+    Args:
+        table: Таблица
+        index: Индекс строки/столбца
+        is_row: True - строка, False - столбец
+        sz: Толщина линии
+    """
+
+    iterable_cells = table.rows[index].cells if is_row else table.columns[index].cells
+
+    print("--- Старт ---")
+
+    count: int = 0
+
+    for cell in iterable_cells:
+        set_cell_border(cell, side, sz)
+
+        count += 1
+
+    print(f"--- Конец --- count = {count}")
+
+
+def set_table_bold_borders(table: Table):
+    """
+    Устанавливает жирные границы таблицы
+    """
+
+    # # Для начала все ребра столбцов должны быть жирными
+    # for i in range(len(table.columns)):
+    #     make_bold_line(table, i, "left", False)
+    #     make_bold_line(table, i, "right", False)
+
+    # # первые две строки - жирные и низ последней
+    # make_bold_line(table, 0, "top")
+    # make_bold_line(table, 1, "top")
+    # make_bold_line(table, 1, "bottom")
+    # make_bold_line(table, len(table.rows) - 1, "bottom")
+
+
+def set_column_width(table: docx.table.Table, col_idx: int, width: float):
+    """
+    Установка ширины колонки
+    Args:
+        table: Таблица
+        col_idx: Индекс колонки
+        width: Ширина в сантиметрах
+    """
+    for row in table.rows:
+        row.cells[col_idx].width = Cm(width)
+
+
+def add_doc_space(doc, top_cm: float = 0, bottom_cm: float = 0, left_cm: float = 0, right_cm: float = 0):
+    """Добавление отступов по всем сторонам"""
+    section = doc.sections[-1]
+    section.top_margin += Cm(top_cm)
+    section.bottom_margin += Cm(bottom_cm)
+    section.left_margin += Cm(left_cm)
+    section.right_margin += Cm(right_cm)
+
+
 def create_table(schedule_dict: dict, save_path: str) -> bool:
     """ Создание таблицы по словарю с парами по дням недели """
     doc = Document()
@@ -217,8 +311,24 @@ def create_table(schedule_dict: dict, save_path: str) -> bool:
     section.left_margin = Cm(1)
     section.right_margin = Cm(0.5)
 
+    # устанавливаем размер страницы A3
+    set_page_size_a3(section)
+
+    # создаем шапку таблицы
     create_table_head(doc)
+
     fill_schedule_table(doc.tables[0], schedule_dict)
+    set_table_bold_borders(doc.tables[0])
+
+    # устанавливаем ширину столбцов полученной таблицы
+    set_column_width(doc.tables[0], 0, 3.5)
+    set_column_width(doc.tables[0], 1, 2.5)
+    set_column_width(doc.tables[0], 2, 8.5)
+    set_column_width(doc.tables[0], 3, 8.5)
+
+    # измнение отступы таблицы (через изменение ширины поля документа)
+    add_doc_space(doc, top_cm=1, left_cm=2.5)
+
     doc.save(save_path)
 
     return True

@@ -5,7 +5,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 GROUP_KEY_WORD = "группа"
-DAY_OF_WEEK_KEY_WORD = "день недели"
+DAY_OF_WEEK_KEY_WORD_LIST = ["день недели", "день", "неделя", "ень нед"]
 TIME_KEY_WORD = "время"
 
 DAYS_OF_WEEK_LIST_KEY_WORDS = [
@@ -84,7 +84,9 @@ class TableCoreParams():
         self.time_col_idx = -1
 
         for (idx, row) in enumerate(self.table.rows):
-            if row.cells[0].text.lower().strip() == DAY_OF_WEEK_KEY_WORD:
+            curernt_row_cells = row.cells[0].text.lower().strip()
+            # если хотя бы одно из данных вхождений есть в ячейке таблицы
+            if any(sub in curernt_row_cells for sub in DAY_OF_WEEK_KEY_WORD_LIST):
                 for (cell_idx, cell) in enumerate(row.cells):
                     if cell.text.lower().strip() == TIME_KEY_WORD:
                         self.time_col_idx = cell_idx
