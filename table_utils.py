@@ -2,6 +2,7 @@
 
 import docx
 
+import docx.document
 import docx.enum
 import docx.enum.table
 import docx.enum.text
@@ -11,6 +12,8 @@ import docx.oxml.shared
 import docx.shared
 import docx.table
 from docx.shared import Inches, Cm
+
+from docx.oxml.shared import OxmlElement, qn
 
 from docx import Document
 from parser_utils import *
@@ -24,6 +27,14 @@ UPPER_CELL_COLOR = "#ffcccc"
 
 LOWER_HEAD_CELL_COLOR = "#99ccff"
 LOWER_CELL_COLOR = "#ccecff"
+
+# Определяем параметры жирной границы
+BOLD_BORDER_PARAMS = {
+    'val': 'single',    # Тип линии
+    'sz': '16',         # Толщина (16 = 2pt)
+    'space': '0',       # Отступ
+    'color': '000000'   # Черный цвет
+}
 
 
 def change_cell_style(cur_cell: docx.table._Cell, font_name: str,
@@ -48,14 +59,14 @@ def set_cell_background_color(cell, color):
     cell_properties.append(shading)
 
 
-def create_table_head(doc: docx.Document):
+def create_table_head(doc: docx.document.Document, group_name: str) -> None:
     """ Создание шапки таблицы с распершеннным расписанием """
 
     # создаем экземпляр таблицы
     schedule_table = doc.add_table(rows=2, cols=4)
     schedule_table.style = 'Table Grid'
 
-    schedule_table.cell(0, 0).text = "Группа"
+    schedule_table.cell(0, 0).text = f"Группа {group_name}"
     schedule_table.cell(0, 0).merge(schedule_table.cell(0, 1))
 
     schedule_table.cell(1, 0).text = "день"
@@ -112,7 +123,7 @@ def add_schedule_row(schedule_table: docx.table.Table, time: str, upper_schedule
 
     cells = schedule_table.add_row().cells
 
-    # # оформляем ячейку "День"
+    # оформляем ячейку "День"
     # change_cell_style(cells[0], TEXT_FONT_KEY_WORD, 10)
     set_cell_background_color(cells[0], DEFAULT_CELL_COLOR)
 
@@ -191,8 +202,6 @@ def fill_schedule_table(schedule_table: docx.table.Table, schedule_dict: dict):
             cur_row_idx += 1
         else:
             schedule_table.rows[cur_row_idx - 1].cells[0].text = cur_day
-            change_cell_style(
-                schedule_table.rows[-1].cells[0], TEXT_FONT_KEY_WORD, 11)
             schedule_table.cell(start_row_idx, 0).merge(
                 schedule_table.cell(cur_row_idx - 1, 0))
 
@@ -202,6 +211,9 @@ def fill_schedule_table(schedule_table: docx.table.Table, schedule_dict: dict):
             schedule_table.cell(
                 start_row_idx, 0).paragraphs[0].alignment = docx.enum.text.WD_ALIGN_PARAGRAPH.CENTER
 
+            change_cell_style(
+                schedule_table.rows[-1].cells[0], TEXT_FONT_KEY_WORD, 11)
+
             start_row_idx = cur_row_idx
 
 
@@ -209,75 +221,6 @@ def set_page_size_a3(section):
     """ Установка размера страницы A3 """
     section.page_width = Cm(29.7)
     section.page_height = Cm(42)
-
-
-def set_cell_border(cell: docx.table._Cell, side: str, sz: int = 4, color: str = "000000"):
-    """Установка границы ячейки"""
-    tc = cell._tc
-    tcPr = tc.get_or_add_tcPr()
-
-    # Получаем существующие границы или создаем новые
-    tcBorders = tcPr.xpath('./w:tcBorders')
-
-    print(
-        f"{'1' if tcBorders else '0'} Горизонтальный span: {tc.grid_span}\tВертикальный span: {tc.vMerge}")
-
-    # if tcBorders:
-    #     return
-
-    if not tcBorders:
-        tcBorders = OxmlElement('w:tcBorders')
-        tcPr.append(tcBorders)
-    else:
-        tcBorders = tcBorders[0]
-
-    # Создаем и добавляем границу
-    border = OxmlElement(f'w:{side}')
-    border.set(qn('w:sz'), str(sz))
-    border.set(qn('w:val'), 'single')
-    border.set(qn('w:color'), color)
-    tcBorders.append(border)
-
-
-def make_bold_line(table: Table, index: int, side: str, is_row: bool = True, sz: int = 16):
-    """
-    Делает жирной строку или столбец таблицы
-    Args:
-        table: Таблица
-        index: Индекс строки/столбца
-        is_row: True - строка, False - столбец
-        sz: Толщина линии
-    """
-
-    iterable_cells = table.rows[index].cells if is_row else table.columns[index].cells
-
-    print("--- Старт ---")
-
-    count: int = 0
-
-    for cell in iterable_cells:
-        set_cell_border(cell, side, sz)
-
-        count += 1
-
-    print(f"--- Конец --- count = {count}")
-
-
-def set_table_bold_borders(table: Table):
-    """
-    Устанавливает жирные границы таблицы
-    """
-
-    # # Для начала все ребра столбцов должны быть жирными
-    # for i in range(len(table.columns)):
-    #     make_bold_line(table, i, "left", False)
-    #     make_bold_line(table, i, "right", False)
-
-    # # первые две строки - жирные и низ последней
-    # make_bold_line(table, 0, "top")
-    # make_bold_line(table, 1, "top")
-    # make_bold_line(table, 1, "bottom")
-    # make_bold_line(table, len(table.rows) - 1, "bottom")
 
 
 def set_column_width(table: docx.table.Table, col_idx: int, width: float):
@@ -290,45 +233,3 @@ def set_column_width(table: docx.table.Table, col_idx: int, width: float):
     """
     for row in table.rows:
         row.cells[col_idx].width = Cm(width)
-
-
-def add_doc_space(doc, top_cm: float = 0, bottom_cm: float = 0, left_cm: float = 0, right_cm: float = 0):
-    """Добавление отступов по всем сторонам"""
-    section = doc.sections[-1]
-    section.top_margin += Cm(top_cm)
-    section.bottom_margin += Cm(bottom_cm)
-    section.left_margin += Cm(left_cm)
-    section.right_margin += Cm(right_cm)
-
-
-def create_table(schedule_dict: dict, save_path: str) -> bool:
-    """ Создание таблицы по словарю с парами по дням недели """
-    doc = Document()
-
-    # изменяем ширину полей документа
-    section = doc.sections[0]
-    section.top_margin = Cm(0.5)
-    section.left_margin = Cm(1)
-    section.right_margin = Cm(0.5)
-
-    # устанавливаем размер страницы A3
-    set_page_size_a3(section)
-
-    # создаем шапку таблицы
-    create_table_head(doc)
-
-    fill_schedule_table(doc.tables[0], schedule_dict)
-    set_table_bold_borders(doc.tables[0])
-
-    # устанавливаем ширину столбцов полученной таблицы
-    set_column_width(doc.tables[0], 0, 3.5)
-    set_column_width(doc.tables[0], 1, 2.5)
-    set_column_width(doc.tables[0], 2, 8.5)
-    set_column_width(doc.tables[0], 3, 8.5)
-
-    # измнение отступы таблицы (через изменение ширины поля документа)
-    add_doc_space(doc, top_cm=1, left_cm=2.5)
-
-    doc.save(save_path)
-
-    return True

@@ -2,10 +2,16 @@ import os
 
 import argparse
 import docx
+from docx.shared import Cm
 
 from docx_parser import parse_table
 from parser_utils import TableCoreParams
-from table_utils import create_table
+
+from table_utils import (set_page_size_a3,
+                         create_table_head,
+                         fill_schedule_table,
+                         set_column_width)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -44,6 +50,30 @@ if __name__ == "__main__":
             schedule_dict = parse_table(table_core_params.table.rows[table_core_params.start_row_idx:], table_core_params.day_col_idx,
                                         table_core_params.time_col_idx, table_core_params.group_name_indexes[group_name])
 
-            # заносим данные в файл, сохраняем его
-            create_table(schedule_dict, os.path.join(
-                input_params.output_dir, f"{group_name}.docx"))
+            doc = docx.Document()  # создаем документ
+
+            # изменяем ширину полей документа
+            section = doc.sections[0]
+            section.top_margin = Cm(1.5)
+            section.left_margin = Cm(2)
+
+            # устанавливаем размер страницы A3
+            set_page_size_a3(section)
+
+            # создаем шапку таблицы
+            create_table_head(doc, group_name)
+            fill_schedule_table(doc.tables[0], schedule_dict)
+
+            # устанавливаем ширину столбцов полученной таблицы
+            set_column_width(doc.tables[0], 0, 3.5)
+            set_column_width(doc.tables[0], 1, 2.5)
+            set_column_width(doc.tables[0], 2, 8.5)
+            set_column_width(doc.tables[0], 3, 8.5)
+
+            # сохраняем документ
+            try:
+                doc.save(os.path.join(
+                    input_params.output_dir, f"{group_name}.docx"))
+            except PermissionError:
+                print(
+                    f"[ERROR] Не удалось сохранить файл {group_name}.docx по пути {input_params.output_dir}. Возможно, он уже открыт в другой программе")
